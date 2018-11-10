@@ -1,0 +1,93 @@
+###############################################################################################################
+#                                       Script for Price Optimization                                         #
+#                                              Package 'nloptr'                                               #
+#                                          Written by Thiago Sousa                                            #
+###############################################################################################################
+
+#Creating a objective function for profit based on a glm model for demand with price
+profit_fun <- function(x, data, model, vars, delta = NULL){
+  
+  data[vars["price"]] <- x
+  data$demand <- predict(object = model, newdata = data, type = "response")
+  data["profit"] <- data[vars["weight"]] * data$demand * (data[vars["price"]] - data[vars["cost"]])
+  profit <- sum(data$profit)
+  
+  return(-profit)
+  
+}
+
+#Creating a function for the derivative of profit based on a glm model for demand with price
+deriv_profit_fun <- function(x, data, model, vars, delta = 0.01){
+  
+  deriv_profit <- NULL
+  
+  for(i in 1:length(x)){
+    
+    x_up <- x
+    x_down <- x
+    
+    x_up[i] <- x[i] + delta
+    x_down[i] <- x[i] - delta
+    
+    f_up <- profit_fun(x = x_up, data = data, model = model, vars = vars)
+    f_down <- profit_fun(x = x_down, data = data, model = model, vars = vars) 
+    
+    deriv_profit[i] <- (f_up - f_down) / (2 * delta)
+    
+  }
+  
+  return(deriv_profit)
+  
+}
+
+#Creating a objective function for revenue based on a glm model for demand with price
+revenue_fun <- function(x, data, model, vars, delta = NULL){
+  
+  data[vars["price"]] <- x
+  data$demand <- predict(object = model, newdata = data, type = "response")
+  data["revenue"] <- data[vars["weight"]] * data$demand * data[vars["price"]]
+  revenue <- sum(data$revenue)
+  
+  return(-revenue)
+  
+}
+
+#Creating a function for the derivative of revenue based on a glm model for demand with price
+deriv_revenue_fun <- function(x, data, model, vars, delta = 0.01){
+  
+  deriv_revenue <- NULL
+  
+  for(i in 1:length(x)){
+    
+    x_up <- x
+    x_down <- x
+    
+    x_up[i] <- x[i] + delta
+    x_down[i] <- x[i] - delta
+    
+    f_up <- revenue_fun(x = x_up, data = data, model = model, vars = vars)
+    f_down <- revenue_fun(x = x_down, data = data, model = model, vars = vars) 
+    
+    deriv_revenue[i] <- (f_up - f_down) / (2 * delta)
+    
+  }
+  
+  return(deriv_revenue)
+  
+}
+
+#Function to calculate the KPI's of the database
+kpis <- function(x, data, model, vars){
+  
+  data[vars["price"]] <- x
+  data$demand <- predict(object = model, newdata = data, type = "response")
+  total_itens <- sum(data[vars["weight"]] * data$demand)
+  total_revenue <- sum(data[vars["weight"]] * data$demand * data[vars["price"]])
+  total_cost <- sum(data[vars["weight"]] * data$demand * data[vars["cost"]])
+  total_profit <- total_revenue - total_cost
+  avg_price <- total_revenue / total_itens
+
+  return(c(avg_price = avg_price, total_profit = total_profit, total_itens = total_itens
+           , total_revenue = total_revenue, total_cost = total_cost))
+  
+}
