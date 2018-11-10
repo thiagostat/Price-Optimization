@@ -1,0 +1,44 @@
+#Carregando os pacotes necessários
+library(nloptr)
+
+#Constructing a base for testing
+k <- 1000
+price <- runif(n = k, min = 1000, max = 2000)
+cost <- price * runif(n = k, min = 0.50, max = 0.70)
+buy_id <- rbinom(n = k, size = 1, prob = 1 / (1 + exp(-(-1.5 -0.00025 * price)))) 
+base <- data.frame(price, cost, buy_id, weight = 1)
+rm(price, cost, buy_id)
+
+#Estimating a logistic demand model for demand
+modelo <- glm(buy_id ~ price, data = base)
+
+#Testing functions
+kpis(x = base[, "price"], data = base, model = modelo
+     , vars = c(price = "price", cost = "cost", weight = "weight"))
+
+profit_fun(x = base[, "price"], data = base, model = modelo
+              , vars = c(price = "price", cost = "cost", weight = "weight"))
+
+#deriv_profit_fun(x = base[, "price"], data = base, model = modelo
+#                 , vars = c(price = "price", cost = "cost", weight = "weight"))
+
+revenue_fun(x = base[, "price"], data = base, model = modelo
+               , vars = c(price = "price", cost = "cost", weight = "weight"))
+
+#deriv_revenue_fun(x = base[, "price"], data = base, model = modelo
+#            , vars = c(price = "price", cost = "cost", weight = "weight"))
+
+#Optimization of prices to obtains maximum profit with prices restricted between 0 and 20000
+prices_opt <- nloptr(x0 = rep(1500, k), eval_f = profit_fun
+                     , eval_grad_f = deriv_profit_fun
+                     , lb = rep(0, k), ub = rep(20000, k)
+                     , opts = list("algorithm" = "NLOPT_LD_MMA", "xtol_rel" = 1e-8
+                                   , "maxeval" = 10000)
+                     , data = base, model = modelo
+                     , vars = c(price = "price", cost = "cost", weight = "weight")
+                     , delta = 0.01)  
+
+prices <- prices_opt$solution
+
+kpis(x = prices, data = base, model = modelo
+     , vars = c(price = "price", cost = "cost", weight = "weight"))
